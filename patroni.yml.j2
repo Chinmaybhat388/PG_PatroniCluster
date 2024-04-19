@@ -1,0 +1,88 @@
+#Jinja2 template for patroni configuration file 
+
+scope:test_patroni_cluster
+name: {{ inventory_hostname }}
+
+restapi:
+  listen: {{ ansible_host }}:8008
+  connect_address: {{ ansible_host }}:8008
+#  certfile: /etc/ssl/certs/ssl-cert-snakeoil.pem
+#  keyfile: /etc/ssl/private/ssl-cert-snakeoil.key
+#  authentication:
+#    username: username
+#    password: password
+
+# ctl:
+#   insecure: false # Allow connections to SSL sites without certs
+#   certfile: /etc/ssl/certs/ssl-cert-snakeoil.pem
+#   cacert: /etc/ssl/certs/ssl-cacert-snakeoil.pem
+
+etcd:
+  host: {{ ansible_host }}:2379
+
+bootstrap:
+  # this section will be written into Etcd:///config after initializing new cluster
+  # and all other cluster members will use it as a `global configuration`
+  dcs:
+    loop_wait: 10
+    retry_timeout: 10
+    ttl: 30
+    postgresql:
+      parameters:
+        hot_standby: 'on'
+        max_connections: 100
+        max_locks_per_transaction: 64
+        max_prepared_transactions: 0
+        max_replication_slots: 10
+        max_wal_senders: 10
+        max_worker_processes: 8
+        track_commit_timestamp: 'off'
+        wal_keep_size: 128MB
+        wal_level: replica
+        wal_log_hints: 'on'
+      use_pg_rewind: true
+      use_slots: true
+
+
+  # some desired options for 'initdb'
+  initdb:  # Note: It needs to be a list (some options need values, others are switches)
+  - encoding: UTF8
+  - data-checksums
+
+  pg_hba:  # Add following lines to pg_hba.conf after running 'initdb'
+  - host all all all scram-sha-256
+  - host replication replicator all scram-sha-256
+
+# Some additional users users which needs to be created after initializing new cluster
+  users:
+    admin:
+      password: admin
+      options:
+        - createrole
+        - createdb
+    replicator:
+      password: postgres
+      options:
+        - superuser
+
+postgresql:
+  listen: {{ ansible_host }}:5432
+  connect_address: {{ ansible_host }}:5432
+  data_dir: /var/lib/pgsql/15/data/
+  bin_dir: /usr/bin
+  authentication:
+    replication:
+      username: replicator
+      password: postgres
+    superuser:
+      username: postgres
+      password: postgres
+  parameters:
+    unix_socket_directories: '/tmp'
+
+
+tags:
+    nofailover: false
+    noloadbalance: false
+    clonefrom: true
+    nosync: false

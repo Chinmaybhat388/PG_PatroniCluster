@@ -1,0 +1,46 @@
+---
+- name: Install PostgresSQL on linux hosts
+  hosts: pg_servers
+  gather_facts: true
+
+  vars_prompt:
+   - name: db_version
+     prompt : Which version of PostgresSQL do you want to install? Minimum version needed is 9.3
+     default: "15"
+     private: false
+
+  tasks:
+   - name: "Get the OS version"
+     debug: msg="{{ item }}"
+     with_items:
+     - "{{ ansible_distribution }}"
+     - "{{ ansible_distribution_major_version }}"
+     register: os_version
+
+   - name: "Install PG repository for RHEL and related distros for version 7"
+     yum:
+      name: https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+      state: present
+     when: (os_version.results[0].item == "OracleLinux" or os_version.results[0].item == "CentOS")  and os_version.results[1].item == "7"
+     become: true
+
+   - name: "Install PG repository for RHEL and related distros for version 6"
+     yum:
+      name: https://download.postgresql.org/pub/repos/yum/reporpms/EL-6-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+      state: present
+     when: (os_version.results[0].item == "OracleLinux" or os_version.results[0].item == "CentOS")  and os_version.results[1].item == "6"
+     become: true
+
+   - name: "Install pgsql"
+     yum:
+      name:
+       - postgresql{{ db_version }}-server
+       - postgresql{{ db_version }}-contrib
+      state: present
+     become: true
+     
+   #We are initializing the cluster in order to create a patroni config file.   
+   - name: "Initialize postgres"
+     shell:
+       cmd: "/usr/pgsql-{{ db_version }}/bin/postgresql-{{ db_version  }}-setup initdb"
+     become: true

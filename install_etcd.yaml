@@ -1,0 +1,59 @@
+---
+- name: "Install and configure ETCD"
+  hosts: etcd_servers
+  gather_facts: false
+  become: true
+
+  tasks:
+   - name: "Copy the etcd tar file"
+     copy:
+       src: etcd-v3.5.13-linux-amd64.tar.gz
+       dest: /tmp
+
+   - name: "Untar the etcd archive file"
+     unarchive:
+       src: /tmp/etcd-v3.5.13-linux-amd64.tar.gz
+       dest: /tmp
+       remote_src: yes
+
+   - name: "Copy the etcd utility to /usr/local/bin directory"
+     copy:
+       src: /tmp/etcd-v3.5.13-linux-amd64/etcd
+       dest: /usr/local/bin
+       remote_src: yes
+       mode: u=rwx,g=rx,o=rx
+
+   - name: "Copy the etcdctl utility to /usr/local/bin directory"
+     copy:
+       src: /tmp/etcd-v3.5.13-linux-amd64/etcdctl
+       dest: /usr/local/bin
+       remote_src: yes
+       mode: u=rwx,g=rx,o=rx
+
+   - name: "Create a data directory for ETCD"
+     file:
+       path: /var/lib/etcd
+       state: directory
+
+   - name: "Generate etcd unit file for systemd"
+     template:
+       src: /home/krchinmaya01/pg_test/etcd.service.j2
+       dest: /etc/systemd/system/etcd.service
+     vars:
+       etcd_listen_peer_urls: "http://{{ ansible_host }}:2380"
+       etcd_listen_client_urls: "http://{{ ansible_host }}:2379"
+       etcd_name: "{{ inventory_hostname }}"
+       etcd_initial_advertise_peer_urls: "http://{{ ansible_host }}:2380"
+       etcd_advertise_client_urls: "http://{{ ansible_host }}:2379"
+       etcd_initial_cluster: "etcd_server1=http://100.66.232.41:2380,etcd_server2=http://100.72.162.111:2380,etcd_server3=http://100.72.162.82:2380"
+       etcd_initial_cluster_state: new
+       etcd_initial_cluster_token: etcd-cluster-token
+
+
+   - name: "Enable and start systemd service for etcd"
+     systemd:
+       name: etcd
+       enabled: true 
+       daemon_reload: true
+       
+      

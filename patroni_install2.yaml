@@ -1,0 +1,51 @@
+---
+- name: "Install patroni"
+  hosts: patroni
+  gather_facts: false
+
+  tasks:
+   - name: "Install the prerequisites for patroni"
+     yum:
+      name:
+        - '*epel-release*'
+        - python3
+        - python3-devel
+        - gcc
+        - python3-pip
+        - python3-setuptools
+        - python3-psycopg2
+        - patroni
+      state: present
+     become: true
+
+
+   - name: "Create configuration directory"
+     file:
+       path: /etc/patroni
+       state: directory
+     become: true
+
+
+   - name: "Create a log directory for Patroni"
+     file:
+       path: /var/log/patroni
+       state: directory
+       owner: postgres
+       group: postgres
+     become: true
+
+
+   - name: "Jinja2 template copy to cluster nodes"
+     template:
+       src: /home/krchinmaya01/pg_test/patroni.yml.j2
+       dest: /etc/patroni/patroni.yml
+     become: true
+
+   - name: "Start patroni service"
+     systemd:
+       name: patroni
+       enabled: true
+       state: started
+       daemon_reload: true
+     become: true
+     
